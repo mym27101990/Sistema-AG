@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiTransfer - Visor de Operaciones</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0F1219;
+            --surface: #161C2A;
+            --surface-2: #1C2438;
+            --surface-3: #232C42;
+            --border: #2A3347;
+            --border-light: #344058;
+            --text: #E4E8F1;
+            --text-muted: #7A849A;
+            --accent: #E09F3E;
+            --accent-hover: #F0B24E;
+            --accent-glow: rgba(224, 159, 62, 0.15);
+            --success: #34D399;
+            --success-bg: rgba(52, 211, 153, 0.1);
+            --danger: #F87171;
+            --danger-bg: rgba(248, 113, 113, 0.1);
+            --info: #60A5FA;
+            --info-bg: rgba(96, 165, 250, 0.1);
+            --purple: #A78BFA;
+            --purple-bg: rgba(167, 139, 250, 0.1);
+            --radius: 10px;
+            --radius-sm: 6px;
+            --shadow: 0 4px 24px rgba(0,0,0,0.3);
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-body: 'DM Sans', sans-serif;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: var(--font-body);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+            position: relative;
+            overflow-x: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: -250px; right: -150px;
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(224,159,62,0.06) 0%, transparent 65%);
+            pointer-events: none;
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            bottom: -250px; left: -150px;
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(96,165,250,0.04) 0%, transparent 65%);
+            pointer-events: none;
+        }
+        .app {
+            position: relative;
+            z-index: 1;
+            max-width: 1260px;
+            margin: 0 auto;
+            padding: 20px 24px 40px;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 20px 0 28px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 24px;
+        }
+        .logo {
+            height: 52px;
+            width: auto;
+            border-radius: 8px;
+            display: none;
+            box-shadow: 0 0 20px rgba(224,159,62,0.15);
+        }
+        .logo.visible { display: block; }
+        .header-text h1 {
+            font-family: var(--font-display);
+            font-size: 1.55rem;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: -0.5px;
+        }
+        .header-subtitle {
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .controls-section {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+        .file-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 22px;
+            background: var(--surface-2);
+            border: 1px dashed var(--border-light);
+            border-radius: var(--radius);
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-size: 0.92rem;
+            min-width: 220px;
+        }
+        .file-label:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-glow);
+        }
+        .file-label.has-file {
+            border-style: solid;
+            border-color: var(--success);
+            color: var(--success);
+            background: var(--success-bg);
+        }
+        .file-label i { font-size: 1.1rem; }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 22px;
+            border: none;
+            border-radius: var(--radius);
+            font-family: var(--font-body);
+            font-size: 0.92rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            white-space: nowrap;
+        }
+        .btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #0F1219;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-hover);
+            box-shadow: 0 0 20px rgba(224,159,62,0.3);
+            transform: translateY(-1px);
+        }
+        .btn-outline {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+        .btn-outline:hover:not(:disabled) {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-glow);
+        }
+        .month-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+        }
+        .month-selector label {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .month-selector select {
+            padding: 10px 16px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-family: var(--font-body);
+            font-size: 0.92rem;
+            cursor: pointer;
+            min-width: 180px;
+            transition: border-color 0.2s;
+        }
+        .month-selector select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        .month-selector select:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .progress-wrapper {
+            height: 4px;
+            background: var(--surface-2);
+            border-radius: 4px;
+            margin-bottom: 22px;
+            overflow: hidden;
+            display: none;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), #F0B24E, var(--accent));
+            background-size: 200% 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            animation: shimmer 1.5s ease infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .kpi-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            opacity: 0;
+            transform: translateY(16px);
+            transition: opacity 0.5s ease, transform 0.5s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+        .kpi-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .kpi-card:nth-child(1) { transition-delay: 0.05s; }
+        .kpi-card:nth-child(2) { transition-delay: 0.12s; }
+        .kpi-card:nth-child(3) { transition-delay: 0.19s; }
+        .kpi-card:nth-child(4) { transition-delay: 0.26s; }
+        .kpi-card:hover {
+            box-shadow: var(--shadow);
+            transform: translateY(-2px);
+        }
+        .kpi-icon {
+            width: 48px; height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        .kpi-total .kpi-icon { background: var(--info-bg); color: var(--info); }
+        .kpi-desc .kpi-icon { background: var(--danger-bg); color: var(--danger); }
+        .kpi-ganancia .kpi-icon { background: var(--success-bg); color: var(--success); }
+        .kpi-onat .kpi-icon { background: var(--purple-bg); color: var(--purple); }
+        .kpi-total:hover { border-color: var(--info); }
+        .kpi-desc:hover { border-color: var(--danger); }
+        .kpi-ganancia:hover { border-color: var(--success); }
+        .kpi-onat:hover { border-color: var(--purple); }
+        .kpi-label {
+            display: block;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .kpi-value {
+            display: block;
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+        .kpi-total .kpi-value { color: var(--info); }
+        .kpi-desc .kpi-value { color: var(--danger); }
+        .kpi-ganancia .kpi-value { color: var(--success); }
+        .kpi-onat .kpi-value { color: var(--purple); }
+        .download-bar {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            padding: 14px 18px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            align-items: center;
+            justify-content: space-between;
+        }
+        .download-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+        }
+        .download-info i {
+            color: var(--accent);
+            font-size: 1rem;
+        }
+        .btn-download {
+            background: linear-gradient(135deg, #D4540E, #E09F3E);
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            border-radius: var(--radius);
+            font-family: var(--font-body);
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        .btn-download:hover:not(:disabled) {
+            box-shadow: 0 0 28px rgba(224, 159, 62, 0.4);
+            transform: translateY(-2px);
+        }
+        .btn-download:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .btn-download .spinner {
+            display: none;
+            width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        .btn-download.loading .spinner { display: inline-block; }
+        .btn-download.loading .btn-icon { display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .filters-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+            transition: opacity 0.3s;
+        }
+        .filters-section.disabled {
+            opacity: 0.35;
+            pointer-events: none;
+        }
+        .filter-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .filter-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--border);
+        }
+        .filter-header h3 {
+            font-family: var(--font-display);
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .filter-header h3 i { color: var(--accent); font-size: 0.85rem; }
+        .filter-panel-alt .filter-header { background: var(--surface-3); }
+        .btn-toggle-all {
+            background: transparent;
+            border: 1px solid var(--border-light);
+            color: var(--text-muted);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.78rem;
+            font-family: var(--font-body);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-toggle-all:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .filter-list {
+            max-height: 160px;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        .filter-list::-webkit-scrollbar { width: 6px; }
+        .filter-list::-webkit-scrollbar-track { background: transparent; }
+        .filter-list::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+        .filter-list::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 10px;
+            border-radius: var(--radius-sm);
+            transition: background 0.15s;
+        }
+        .checkbox-item:hover { background: var(--surface-2); }
+        .checkbox-item input[type="checkbox"] {
+            width: 16px; height: 16px;
+            cursor: pointer;
+            accent-color: var(--accent);
+            flex-shrink: 0;
+        }
+        .checkbox-item label {
+            cursor: pointer;
+            font-size: 0.88rem;
+            color: var(--text);
+            user-select: none;
+        }
+        .empty-msg {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            padding: 24px 0;
+        }
+        .table-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 18px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius) var(--radius) 0 0;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        .table-summary strong { color: var(--text); }
+        .sum-highlight {
+            color: var(--accent) !important;
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 1rem;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 var(--radius) var(--radius);
+        }
+        .table-wrapper::-webkit-scrollbar { height: 8px; }
+        .table-wrapper::-webkit-scrollbar-track { background: var(--surface); }
+        .table-wrapper::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+        thead { position: sticky; top: 0; z-index: 2; }
+        th {
+            background: var(--surface-3);
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 13px 14px;
+            text-align: left;
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+        }
+        td {
+            padding: 11px 14px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            vertical-align: middle;
+        }
+        tbody tr { transition: background 0.15s; }
+        tbody tr:nth-child(even) { background: rgba(255,255,255,0.015); }
+        tbody tr:hover { background: var(--surface-2); }
+        .text-right { text-align: right; font-family: var(--font-display); font-weight: 500; }
+        .text-center { text-align: center; }
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .badge-success {
+            background: var(--success-bg);
+            color: var(--success);
+            border: 1px solid rgba(52,211,153,0.2);
+        }
+        .badge-db {
+            background: var(--info-bg);
+            color: var(--info);
+            border: 1px solid rgba(96,165,250,0.2);
+        }
+        .badge-cr {
+            background: var(--purple-bg);
+            color: var(--purple);
+            border: 1px solid rgba(167,139,250,0.2);
+        }
+        .table-empty {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--text-muted);
+        }
+        .table-empty i { font-size: 2rem; margin-bottom: 12px; display: block; opacity: 0.4; }
+        #toastContainer {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 10px;
+        }
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 20px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            color: var(--text);
+            font-size: 0.9rem;
+            min-width: 280px;
+            animation: toastIn 0.35s ease forwards;
+        }
+        .toast.removing { animation: toastOut 0.3s ease forwards; }
+        .toast-success { border-left: 3px solid var(--success); }
+        .toast-success i { color: var(--success); }
+        .toast-error { border-left: 3px solid var(--danger); }
+        .toast-error i { color: var(--danger); }
+        .toast-info { border-left: 3px solid var(--info); }
+        .toast-info i { color: var(--info); }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(40px) scale(0.95); }
+            to { opacity: 1; transform: translateX(0) scale(1); }
+        }
+        @keyframes toastOut {
+            from { opacity: 1; transform: translateX(0) scale(1); }
+            to { opacity: 0; transform: translateX(40px) scale(0.95); }
+        }
+        @media (max-width: 900px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .filters-section { grid-template-columns: 1fr; }
+            .month-selector { margin-left: 0; width: 100%; }
+            .month-selector select { flex: 1; }
+        }
+        @media (max-width: 600px) {
+            .app { padding: 14px 12px 30px; }
+            .kpi-grid { grid-template-columns: 1fr; }
+            .controls-section { flex-direction: column; align-items: stretch; }
+            .file-label { min-width: unset; justify-content: center; }
+            .download-bar { flex-direction: column; text-align: center; }
+            .header-text h1 { font-size: 1.25rem; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="toastContainer"></div>
+
+<div class="app">
+    <header class="header">
+        <img id="logoImg" class="logo" alt="Logo MiTransfer">
+        <div class="header-text">
+            <h1>MiTransfer</h1>
+            <p class="header-subtitle">Visor de Operaciones de Agente de Telecomunicaciones</p>
+        </div>
+    </header>
+
+    <main>
+        <section class="controls-section" aria-label="Controles de documento">
+            <div class="file-input-wrapper">
+                <label for="pdfUpload" class="file-label" id="fileLabelWrap">
+                    <i class="fa-solid fa-file-pdf"></i>
+                    <span id="fileLabel">Seleccionar documento PDF</span>
+                </label>
+                <input type="file" id="pdfUpload" accept=".pdf" hidden>
+            </div>
+            <button id="btnProcess" disabled class="btn btn-primary">
+                <i class="fa-solid fa-bolt"></i> Procesar
+            </button>
+            <div class="month-selector">
+                <label for="monthSelect"><i class="fa-regular fa-calendar"></i> Mes:</label>
+                <select id="monthSelect" disabled>
+                    <option value="">-- Cargue un PDF --</option>
+                </select>
+            </div>
+        </section>
+
+        <div id="progressContainer" class="progress-wrapper" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+            <div id="progressBar" class="progress-fill"></div>
+        </div>
+
+        <section class="kpi-grid" aria-label="Indicadores financieros">
+            <div class="kpi-card kpi-total">
+                <div class="kpi-icon"><i class="fa-solid fa-coins"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Importe Total</span>
+                    <span id="calcTotal" class="kpi-value">0,00 CUP</span>
+                </div>
+            </div>
+            <div class="kpi-card kpi-desc">
+                <div class="kpi-icon"><i class="fa-solid fa-arrow-trend-down"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Descontado</span>
+                    <span id="calcDesc" class="kpi-value">0,00 CUP</span>
+                </div>
+            </div>
+            <div class="kpi-card kpi-ganancia">
+                <div class="kpi-icon"><i class="fa-solid fa-chart-line"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Ganancia</span>
+                    <span id="calcGanancia" class="kpi-value">0,00 CUP</span>
+                </div>
+            </div>
+            <div class="kpi-card kpi-onat">
+                <div class="kpi-icon"><i class="fa-solid fa-landmark"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Impuesto ONAT</span>
+                    <span id="calcOnat" class="kpi-value">0,00 CUP</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Barra de Descarga PDF -->
+        <section class="download-bar" aria-label="Descargar informe">
+            <div class="download-info">
+                <i class="fa-solid fa-file-arrow-down"></i>
+                <span>Descargue el informe completo con los datos filtrados actuales</span>
+            </div>
+            <button id="btnDownloadPDF" disabled class="btn-download">
+                <span class="spinner"></span>
+                <i class="fa-solid fa-file-pdf btn-icon"></i>
+                <span>Descargar PDF</span>
+            </button>
+        </section>
+
+        <section class="filters-section disabled" id="filterWrapper" aria-label="Filtros por tipo de operacion">
+            <div class="filter-panel">
+                <div class="filter-header">
+                    <h3><i class="fa-solid fa-user-tie"></i> Operaciones de Agente</h3>
+                    <button class="btn-toggle-all" data-target="agentContainer">Todos</button>
+                </div>
+                <div id="agentContainer" class="filter-list">
+                    <p class="empty-msg">Cargue un documento</p>
+                </div>
+            </div>
+            <div class="filter-panel filter-panel-alt">
+                <div class="filter-header">
+                    <h3><i class="fa-solid fa-store"></i> Operaciones de Bolsa</h3>
+                    <button class="btn-toggle-all" data-target="bolsaContainer">Todos</button>
+                </div>
+                <div id="bolsaContainer" class="filter-list">
+                    <p class="empty-msg">Cargue un documento</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="table-summary">
+            <span><i class="fa-solid fa-list-ol"></i> Registros: <strong id="rowCount">0</strong></span>
+            <span>Suma Filtrada: <span id="totalSum" class="sum-highlight">0,00 CUP</span></span>
+        </div>
+
+        <div class="table-wrapper">
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>ID Operacion</th>
+                        <th>Fecha</th>
+                        <th style="text-align:right">Importe (CUP)</th>
+                        <th>ID Proveedor</th>
+                        <th>Tipo de Operacion</th>
+                        <th style="text-align:center">Resultado</th>
+                        <th style="text-align:center">Tipo Pago</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr><td colspan="7" class="table-empty"><i class="fa-solid fa-inbox"></i>Cargue y procese un documento PDF para visualizar las operaciones.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    // ============================================================
+    // Estado global
+    // ============================================================
+    let allData = [];
+    let fileData = null;
+    let logoBase64 = null;
+    let availableMonths = [];
+    let currentCalculations = { total: 0, desc: 0, ganancia: 0, onat: 0 };
+
+    const MESES = [
+        'Enero','Febrero','Marzo','Abril','Mayo','Junio',
+        'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
+    ];
+
+    // ============================================================
+    // Referencias DOM
+    // ============================================================
+    const pdfUpload         = document.getElementById('pdfUpload');
+    const fileLabel         = document.getElementById('fileLabel');
+    const fileLabelWrap     = document.getElementById('fileLabelWrap');
+    const btnProcess        = document.getElementById('btnProcess');
+    const monthSelect       = document.getElementById('monthSelect');
+    const filterWrapper     = document.getElementById('filterWrapper');
+    const agentContainer    = document.getElementById('agentContainer');
+    const bolsaContainer    = document.getElementById('bolsaContainer');
+    const tableBody         = document.getElementById('tableBody');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar       = document.getElementById('progressBar');
+    const rowCountSpan      = document.getElementById('rowCount');
+    const totalSumSpan      = document.getElementById('totalSum');
+    const logoImg           = document.getElementById('logoImg');
+    const calcTotalElem     = document.getElementById('calcTotal');
+    const calcDescElem      = document.getElementById('calcDesc');
+    const calcGananciaElem  = document.getElementById('calcGanancia');
+    const calcOnatElem      = document.getElementById('calcOnat');
+    const btnDownloadPDF    = document.getElementById('btnDownloadPDF');
+
+    // ============================================================
+    // Event Listeners
+    // ============================================================
+    pdfUpload.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file && file.type === 'application/pdf') {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                fileData = new Uint8Array(event.target.result);
+                btnProcess.disabled = false;
+                fileLabel.textContent = file.name;
+                fileLabelWrap.classList.add('has-file');
+                resetUI();
+            };
+            reader.readAsArrayBuffer(file);
+        }
+    });
+
+    btnProcess.addEventListener('click', function() {
+        if (!fileData) return;
+        btnProcess.disabled = true;
+        progressContainer.style.display = 'block';
+        progressBar.style.width = '0%';
+        processPdf(fileData);
+    });
+
+    monthSelect.addEventListener('change', renderTable);
+    btnDownloadPDF.addEventListener('click', generatePDF);
+
+    document.querySelectorAll('.btn-toggle-all').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var targetId = this.getAttribute('data-target');
+            var container = document.getElementById(targetId);
+            var checkboxes = container.querySelectorAll('input[type="checkbox"]');
+            var allChecked = Array.from(checkboxes).every(function(cb) { return cb.checked; });
+            checkboxes.forEach(function(cb) { cb.checked = !allChecked; });
+            renderTable();
+        });
+    });
+
+    // ============================================================
+    // Funciones principales
+    // ============================================================
+    function resetUI() {
+        tableBody.innerHTML = '<tr><td colspan="7" class="table-empty"><i class="fa-solid fa-inbox"></i>Presione "Procesar" para cargar las operaciones.</td></tr>';
+        agentContainer.innerHTML = '<p class="empty-msg">Presione "Procesar"</p>';
+        bolsaContainer.innerHTML = '<p class="empty-msg">Presione "Procesar"</p>';
+        filterWrapper.classList.add('disabled');
+        progressContainer.style.display = 'none';
+        monthSelect.innerHTML = '<option value="">-- Procese el documento --</option>';
+        monthSelect.disabled = true;
+        updateCalculations(0);
+        rowCountSpan.textContent = '0';
+        totalSumSpan.textContent = '0,00 CUP';
+        logoImg.classList.remove('visible');
+        logoBase64 = null;
+        btnDownloadPDF.disabled = true;
+        document.querySelectorAll('.kpi-card').forEach(function(c) { c.classList.remove('visible'); });
+    }
+
+    async function processPdf(data) {
+        try {
+            var pdf = await pdfjsLib.getDocument({ data: data }).promise;
+            var numPages = pdf.numPages;
+            var fullText = "";
+
+            var firstPage = await pdf.getPage(1);
+            extractLogo(firstPage);
+
+            for (var i = 1; i <= numPages; i++) {
+                var percent = Math.round((i / numPages) * 100);
+                progressBar.style.width = percent + '%';
+                progressContainer.setAttribute('aria-valuenow', percent);
+
+                var page = await pdf.getPage(i);
+                var textContent = await page.getTextContent();
+                var pageText = textContent.items.map(function(item) { return item.str; }).join(' ') + " ";
+                fullText += pageText;
+            }
+
+            parseTextToDataGlobal(fullText);
+
+            if (allData.length === 0) {
+                showToast('No se encontraron operaciones validas en el documento.', 'error');
+                btnProcess.disabled = false;
+                progressContainer.style.display = 'none';
+                return;
+            }
+
+            populateMonthSelector();
+            populateFilters();
+
+            filterWrapper.classList.remove('disabled');
+            monthSelect.disabled = false;
+            btnProcess.disabled = false;
+            btnDownloadPDF.disabled = false;
+
+            setTimeout(function() {
+                document.querySelectorAll('.kpi-card').forEach(function(c) { c.classList.add('visible'); });
+            }, 100);
+
+            renderTable();
+            showToast(allData.length + ' operaciones cargadas correctamente.', 'success');
+
+        } catch (err) {
+            console.error("Error procesando PDF:", err);
+            showToast('Error al procesar el documento.', 'error');
+            progressContainer.style.display = 'none';
+            btnProcess.disabled = false;
+        }
+    }
+
+    async function extractLogo(page) {
+        try {
+            var operatorList = await page.getOperatorList();
+            for (var i = 0; i < operatorList.fnArray.length; i++) {
+                var fn = operatorList.fnArray[i];
+                if (fn === pdfjsLib.OPS.paintImageXObject || fn === 90 || fn === 91 || fn === 92) {
+                    var imgName = operatorList.argsArray[i][0];
+                    try {
+                        var img = await new Promise(function(resolve, reject) {
+                            page.objs.get(imgName, function(imgData) {
+                                if (imgData) resolve(imgData);
+                                else reject("Sin datos");
+                            });
+                        });
+                        var canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        var ctx = canvas.getContext('2d');
+                        ctx.putImageData(img.data, 0, 0);
+                        logoBase64 = canvas.toDataURL('image/png');
+                        logoImg.src = logoBase64;
+                        logoImg.classList.add('visible');
+                        return;
+                    } catch (e) { /* seguir */ }
+                }
+            }
+        } catch (e) { /* sin logo */ }
+    }
+
+    function parseTextToDataGlobal(text) {
+        allData = [];
+        var lineRegex = /(TMW\d+)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2})\s+(.+?)\s+(Exitosa|Fallida)\s+(DB|CR)/g;
+        var match;
+
+        while ((match = lineRegex.exec(text)) !== null) {
+            var idOp = match[1];
+            var fecha = match[2] + " " + match[3];
+            var resultado = match[5];
+            var tipoPago = match[6];
+
+            if (resultado === "Fallida") continue;
+
+            var blob = match[4].trim();
+            var tokens = blob.split(/\s+/);
+
+            var importeRaw = tokens[0];
+            var importeValor = 0;
+            if (!isNaN(parseFloat(importeRaw))) {
+                importeValor = parseFloat(importeRaw) / 100.0;
+            }
+
+            var tipoOperacionParts = [];
+            for (var i = tokens.length - 1; i >= 0; i--) {
+                if (!/^\d+$/.test(tokens[i])) {
+                    tipoOperacionParts.unshift(tokens[i]);
+                } else {
+                    break;
+                }
+            }
+            var tipoOperacion = tipoOperacionParts.join(' ');
+
+            var idProveedor = "N/A";
+            var cupIndex = tokens.indexOf("CUP");
+            if (cupIndex !== -1 && tokens[cupIndex + 1] && /^\d+$/.test(tokens[cupIndex + 1])) {
+                idProveedor = tokens[cupIndex + 1];
+            }
+
+            allData.push({ idOp: idOp, fecha: fecha, importe: importeValor, idProveedor: idProveedor, tipoOperacion: tipoOperacion, resultado: resultado, tipoPago: tipoPago });
+        }
+    }
+
+    function getMonthKey(dateStr) {
+        var parts = dateStr.split('/');
+        return parts[1] + '/' + parts[2].split(' ')[0];
+    }
+
+    function formatMonthDisplay(monthKey) {
+        var parts = monthKey.split('/');
+        return MESES[parseInt(parts[0]) - 1] + ' ' + parts[1];
+    }
+
+    function populateMonthSelector() {
+        var monthSet = {};
+        allData.forEach(function(item) { monthSet[getMonthKey(item.fecha)] = true; });
+        availableMonths = Object.keys(monthSet).sort(function(a, b) {
+            var ap = a.split('/').map(Number);
+            var bp = b.split('/').map(Number);
+            return (ap[1] * 12 + ap[0]) - (bp[1] * 12 + bp[0]);
+        });
+
+        monthSelect.innerHTML = '<option value="">Todos los meses</option>';
+        availableMonths.forEach(function(mk) {
+            var opt = document.createElement('option');
+            opt.value = mk;
+            opt.textContent = formatMonthDisplay(mk);
+            monthSelect.appendChild(opt);
+        });
+    }
+
+    function createCheckbox(type, container) {
+        var div = document.createElement('div');
+        div.className = 'checkbox-item';
+
+        var checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = 'chk_' + type.replace(/\s+/g, '_');
+        checkbox.value = type;
+        checkbox.checked = type.endsWith("AT");
+        checkbox.addEventListener('change', renderTable);
+
+        var label = document.createElement('label');
+        label.htmlFor = checkbox.id;
+        label.textContent = type;
+
+        div.appendChild(checkbox);
+        div.appendChild(label);
+        container.appendChild(div);
+    }
+
+    function populateFilters() {
+        var typeSet = {};
+        allData.forEach(function(item) { typeSet[item.tipoOperacion] = true; });
+        var types = Object.keys(typeSet).sort();
+
+        agentContainer.innerHTML = '';
+        bolsaContainer.innerHTML = '';
+
+        if (types.length === 0) {
+            agentContainer.innerHTML = '<p class="empty-msg">Sin datos.</p>';
+            bolsaContainer.innerHTML = '<p class="empty-msg">Sin datos.</p>';
+            return;
+        }
+
+        types.forEach(function(type) {
+            if (type.endsWith("AT")) {
+                createCheckbox(type, agentContainer);
+            } else {
+                createCheckbox(type, bolsaContainer);
+            }
+        });
+    }
+
+    function getCheckedTypes() {
+        var checked = document.querySelectorAll('.filter-list input[type="checkbox"]:checked');
+        return Array.from(checked).map(function(cb) { return cb.value; });
+    }
+
+    function getFilteredData() {
+        var data = allData.slice();
+
+        var selectedMonth = monthSelect.value;
+        if (selectedMonth) {
+            data = data.filter(function(item) { return getMonthKey(item.fecha) === selectedMonth; });
+        }
+
+        var checkedTypes = getCheckedTypes();
+        if (checkedTypes.length > 0) {
+            data = data.filter(function(item) { return checkedTypes.indexOf(item.tipoOperacion) !== -1; });
+        }
+
+        return data;
+    }
+
+    function updateCalculations(totalSum) {
+        var importeTotal = (totalSum * 100) / 90;
+        var importeDescontado = totalSum;
+        var ganancia = importeTotal - importeDescontado;
+        var baseOnat = ganancia - 3260;
+        var impuestoOnat = baseOnat > 0 ? baseOnat * 0.05 : 0;
+
+        currentCalculations = { total: importeTotal, desc: importeDescontado, ganancia: ganancia, onat: impuestoOnat };
+
+        animateValue(calcTotalElem, importeTotal);
+        animateValue(calcDescElem, importeDescontado);
+        animateValue(calcGananciaElem, ganancia);
+        animateValue(calcOnatElem, impuestoOnat);
+    }
+
+    function animateValue(element, targetValue) {
+        var currentText = element.textContent.replace(/[^\d.,\-]/g, '').replace(/\./g, '').replace(',', '.');
+        var startValue = parseFloat(currentText) || 0;
+        var range = targetValue - startValue;
+        if (Math.abs(range) < 0.01) {
+            element.textContent = formatCurrency(targetValue);
+            return;
+        }
+        var duration = 500;
+        var startTime = performance.now();
+
+        function update(currentTime) {
+            var elapsed = currentTime - startTime;
+            var progress = Math.min(elapsed / duration, 1);
+            var eased = 1 - Math.pow(1 - progress, 3);
+            var current = startValue + range * eased;
+            element.textContent = formatCurrency(current);
+            if (progress < 1) requestAnimationFrame(update);
+        }
+        requestAnimationFrame(update);
+    }
+
+    function formatCurrency(num) {
+        return num.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' CUP';
+    }
+
+    function fmtNum(num) {
+        return num.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function renderTable() {
+        var filteredData = getFilteredData();
+        var total = 0;
+
+        tableBody.innerHTML = '';
+
+        if (filteredData.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="7" class="table-empty"><i class="fa-solid fa-filter-circle-xmark"></i>No hay operaciones que coincidan con los filtros seleccionados.</td></tr>';
+        } else {
+            filteredData.forEach(function(row) {
+                total += row.importe;
+                var tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td>' + row.idOp + '</td>' +
+                    '<td>' + row.fecha + '</td>' +
+                    '<td class="text-right">' + fmtNum(row.importe) + '</td>' +
+                    '<td>' + row.idProveedor + '</td>' +
+                    '<td>' + row.tipoOperacion + '</td>' +
+                    '<td class="text-center"><span class="badge badge-success">' + row.resultado + '</span></td>' +
+                    '<td class="text-center"><span class="badge badge-' + row.tipoPago.toLowerCase() + '">' + row.tipoPago + '</span></td>';
+                tableBody.appendChild(tr);
+            });
+        }
+
+        rowCountSpan.textContent = filteredData.length;
+        totalSumSpan.textContent = formatCurrency(total);
+        updateCalculations(total);
+    }
+
+    // ============================================================
+    // Generacion de PDF con jsPDF
+    // ============================================================
+    function generatePDF() {
+        var filteredData = getFilteredData();
+        if (filteredData.length === 0) {
+            showToast('No hay datos para generar el PDF.', 'error');
+            return;
+        }
+
+        btnDownloadPDF.classList.add('loading');
+
+        // Pequeño retardo para que se vea el spinner
+        setTimeout(function() {
+            try {
+                var { jsPDF } = window.jspdf;
+                var doc = new jsPDF('p', 'mm', 'a4');
+                var pageWidth = doc.internal.pageSize.getWidth();
+                var margin = 15;
+                var contentWidth = pageWidth - margin * 2;
+                var y = margin;
+
+                // Colores
+                var cDark = [15, 18, 25];
+                var cSurface = [22, 28, 42];
+                var cAccent = [224, 159, 62];
+                var cInfo = [96, 165, 250];
+                var cDanger = [248, 113, 113];
+                var cSuccess = [52, 211, 153];
+                var cPurple = [167, 139, 250];
+                var cText = [228, 232, 241];
+                var cMuted = [122, 132, 154];
+                var cBorder = [42, 51, 71];
+
+                // Fondo de la página completo
+                doc.setFillColor.apply(doc, cDark);
+                doc.rect(0, 0, pageWidth, doc.internal.pageSize.getHeight(), 'F');
+
+                // ---- CABECERA ----
+                var headerH = 28;
+                doc.setFillColor.apply(doc, cSurface);
+                doc.roundedRect(margin, y, contentWidth, headerH, 3, 3, 'F');
+                y += 2;
+
+                // Logo
+                var logoX = margin + 6;
+                var logoSize = 22;
+                if (logoBase64) {
+                    doc.addImage(logoBase64, 'PNG', logoX, y + 2, logoSize, logoSize);
+                }
+
+                // Texto del título
+                var titleX = logoBase64 ? logoX + logoSize + 8 : margin + 6;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(16);
+                doc.setTextColor.apply(doc, cAccent);
+                doc.text('MiTransfer', titleX, y + 11);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8.5);
+                doc.setTextColor.apply(doc, cMuted);
+                doc.text('Visor de Operaciones de Agente de Telecomunicaciones', titleX, y + 19);
+
+                y += headerH + 6;
+
+                // ---- INFORME DEL CONTEXTO ----
+                var mesLabel = monthSelect.value ? formatMonthDisplay(monthSelect.value) : 'Todos los meses';
+                var checkedTypes = getCheckedTypes();
+                doc.setFontSize(8);
+                doc.setTextColor.apply(doc, cMuted);
+                doc.text('Mes: ' + mesLabel, margin, y);
+                doc.text('Registros: ' + filteredData.length, margin + 55, y);
+                var now = new Date();
+                doc.text('Generado: ' + now.toLocaleDateString('es-ES') + ' ' + now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }), pageWidth - margin, y, { align: 'right' });
+
+                if (checkedTypes.length > 0 && checkedTypes.length <= 4) {
+                    y += 4;
+                    doc.text('Tipos: ' + checkedTypes.join(', '), margin, y);
+                }
+
+                y += 8;
+
+                // ---- TARJETAS KPI ----
+                var kpiH = 22;
+                var kpiGap = 4;
+                var kpiW = (contentWidth - kpiGap * 3) / 4;
+                var kpis = [
+                    { label: 'IMPORTE TOTAL', value: fmtNum(currentCalculations.total) + ' CUP', color: cInfo, bg: [19, 27, 46] },
+                    { label: 'DESCONTADO', value: fmtNum(currentCalculations.desc) + ' CUP', color: cDanger, bg: [46, 19, 19] },
+                    { label: 'GANANCIA', value: fmtNum(currentCalculations.ganancia) + ' CUP', color: cSuccess, bg: [15, 46, 31] },
+                    { label: 'IMPUESTO ONAT', value: fmtNum(currentCalculations.onat) + ' CUP', color: cPurple, bg: [32, 24, 50] }
+                ];
+
+                kpis.forEach(function(kpi, idx) {
+                    var kx = margin + idx * (kpiW + kpiGap);
+                    doc.setFillColor.apply(doc, kpi.bg);
+                    doc.roundedRect(kx, y, kpiW, kpiH, 2, 2, 'F');
+
+                    // Línea superior de color
+                    doc.setFillColor.apply(doc, kpi.color);
+                    doc.rect(kx, y, kpiW, 1.5, 'F');
+
+                    doc.setFontSize(6.5);
+                    doc.setTextColor.apply(doc, cMuted);
+                    doc.text(kpi.label, kx + 5, y + 8);
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(10);
+                    doc.setTextColor.apply(doc, kpi.color);
+                    doc.text(kpi.value, kx + 5, y + 17);
+                });
+
+                y += kpiH + 10;
+
+                // ---- TABLA DE DATOS ----
+                var tableHeaders = [['ID Operacion', 'Fecha', 'Importe (CUP)', 'ID Prov.', 'Tipo Operacion', 'Res.', 'Pago']];
+                var tableRows = filteredData.map(function(row) {
+                    return [
+                        row.idOp,
+                        row.fecha,
+                        fmtNum(row.importe),
+                        row.idProveedor,
+                        row.tipoOperacion,
+                        row.resultado,
+                        row.tipoPago
+                    ];
+                });
+
+                // Fila de totales
+                var totalSum = 0;
+                filteredData.forEach(function(r) { totalSum += r.importe; });
+                tableRows.push(['', '', '', '', 'TOTAL', '', fmtNum(totalSum)]);
+
+                doc.autoTable({
+                    head: tableHeaders,
+                    body: tableRows,
+                    startY: y,
+                    margin: { left: margin, right: margin },
+                    theme: 'plain',
+                    styles: {
+                        fillColor: cDark,
+                        textColor: cText,
+                        fontSize: 7.5,
+                        cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
+                        lineColor: cBorder,
+                        lineWidth: 0.2,
+                        font: 'helvetica'
+                    },
+                    headStyles: {
+                        fillColor: cSurface,
+                        textColor: cMuted,
+                        fontStyle: 'bold',
+                        fontSize: 7
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 26 },
+                        1: { cellWidth: 32 },
+                        2: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
+                        3: { cellWidth: 16 },
+                        5: { cellWidth: 14, halign: 'center' },
+                        6: { cellWidth: 12, halign: 'center' }
+                    },
+                    didParseCell: function(data) {
+                        // Fila de totales (última)
+                        if (data.row.index === tableRows.length - 1) {
+                            data.cell.styles.fillColor = cSurface;
+                            data.cell.styles.fontStyle = 'bold';
+                            data.cell.styles.textColor = cAccent;
+                            data.cell.styles.fontSize = 8;
+                        }
+                        // Color para la columna "Res."
+                        if (data.section === 'body' && data.column.index === 5 && data.row.index < tableRows.length - 1) {
+                            data.cell.styles.textColor = cSuccess;
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                        // Color para tipo de pago
+                        if (data.section === 'body' && data.column.index === 6 && data.row.index < tableRows.length - 1) {
+                            var val = data.cell.raw;
+                            if (val === 'DB') data.cell.styles.textColor = cInfo;
+                            else if (val === 'CR') data.cell.styles.textColor = cPurple;
+                        }
+                    },
+                    didDrawPage: function(data) {
+                        // Fondo en cada nueva página
+                        doc.setFillColor.apply(doc, cDark);
+                        doc.rect(0, 0, pageWidth, doc.internal.pageSize.getHeight(), 'F');
+
+                        // Pie de página
+                        doc.setFontSize(7);
+                        doc.setTextColor.apply(doc, cMuted);
+                        doc.text(
+                            'MiTransfer - Informe de Operaciones - Pagina ' + doc.internal.getNumberOfPages(),
+                            pageWidth / 2,
+                            doc.internal.pageSize.getHeight() - 8,
+                            { align: 'center' }
+                        );
+                    }
+                });
+
+                // Nombre del archivo
+                var fileName = 'informe_mitransfer_' + (monthSelect.value || 'todos').replace('/', '-') + '.pdf';
+                doc.save(fileName);
+
+                showToast('PDF descargado: ' + fileName, 'success');
+
+            } catch (err) {
+                console.error('Error generando PDF:', err);
+                showToast('Error al generar el PDF.', 'error');
+            }
+
+            btnDownloadPDF.classList.remove('loading');
+        }, 400);
+    }
+
+    // ============================================================
+    // Sistema de Toasts
+    // ============================================================
+    function showToast(message, type) {
+        type = type || 'info';
+        var container = document.getElementById('toastContainer');
+        var toast = document.createElement('div');
+        toast.className = 'toast toast-' + type;
+
+        var iconClass = 'fa-circle-info';
+        if (type === 'success') iconClass = 'fa-circle-check';
+        if (type === 'error') iconClass = 'fa-circle-exclamation';
+
+        toast.innerHTML = '<i class="fa-solid ' + iconClass + '"></i><span>' + message + '</span>';
+        container.appendChild(toast);
+
+        setTimeout(function() {
+            toast.classList.add('removing');
+            setTimeout(function() {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 300);
+        }, 3500);
+    }
+</script>
+</body>
+</html>
